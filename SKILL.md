@@ -121,6 +121,16 @@ function El({config:e,value:t,onSelect:n,label:r,…}){ …
 Values absent from the map (real model names such as `SWE-2 Flash Medium`, `Claude Sonnet`)
 stay as-is on purpose. Only one `chunk-app-initial-*.js` matches and its hash changes every build.
 
+Field names come from the same ACP payload (`Effort`, `Agent`, `Mode`), so `__devinZhLab()` maps
+them to 推理强度 / 代理 / 协作模式, and a bare `默认` chip becomes `默认（推理强度）` /
+`默认（代理）` / `默认（模式）` so the two 默认 chips are distinguishable.
+
+The `/` command menu ("命令和技能") gets its rows from the same payload
+(`availableCommands` → `{type:'input-command', displayText:'/'+name, description}`).
+`__devinZhCmd(name, description)` in the same chunk rewrites descriptions for known agent ids
+(`requirements-code/generate/review/testing`, `report-distribution-agent`); every other row keeps
+the description its skill or agent author wrote, which is user content and is not translated here.
+
 ## 5. Keep the app launchable
 
 ```bash
