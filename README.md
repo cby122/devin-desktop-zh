@@ -10,7 +10,8 @@ Devin Desktop ships its own React front-end and only bundles `en / ja / pt / es 
 | `install_devin_zh.py` | One-shot installer: clones `/Applications/Devin.app` to `Devin 中文版.app`, injects the dictionary, registers the `zh` locale, forces it on start-up, re-signs. |
 | `zh-Hans.translation.json` | Main dictionary — 423 namespaces / 33,457 strings, key-set identical to the built-in English one. |
 | `chunk-zh-hans-zhcn.js` | The same dictionary as an ES module chunk, which is what the app actually imports. |
-| `zh-Hans.review.json` / `chunk-zh-review-zhcn.js` | Dictionary for the PR-review screen (50 namespaces / 1,283 strings). |
+| `zh-Hans.review.json` / `chunk-zh-review-zhcn.js` | Dictionary for the PR-review screen (50 namespaces / 1,447 strings). The same file also feeds the dictionary embedded inside `sessions.desktop.main.js` and `windsurf-chat-client/index.js`. |
+| `tool-inline-dict.py` | Dumps / re-patches the dictionaries embedded in the two big editor bundles (`JSON.parse('…')` literal) — the layer behind the Review, merge-manager and reviewer-sidebar screens. |
 | `tool-ide-translate.py` | Extracts hard-coded UI literals from the three big bundles and translates them (Bing, resumable cache). |
 | `tool-ide-patch.py` / `tool-pass2-patch.py` | Replace those literals in `workbench.desktop.main.js`, `sessions.desktop.main.js` and `windsurf-chat-client/index.js`, plus the web-app assets. |
 
@@ -29,7 +30,8 @@ First launch may ask for keychain access (“Devin Safe Storage”). Enter your 
 
 ## Known limits
 
-* Strings that the Devin server or an ACP agent sends at runtime (automation templates, session content, model capability labels such as `Default` / `High`, the status-bar plan badge) cannot be localised locally.
+* Strings that the Devin server or an ACP agent sends at runtime (automation templates, session content, model capability labels such as `Normal` / `Default` / `High`, agent descriptions in Settings, the status-bar plan badge) cannot be localised locally.
+* Screens rendered by the remote web app (`app.devin.ai/...`) bring their own server-side copy.
 * Brand names stay as-is: Devin, Windsurf, Codex, Claude, DeepWiki, MiniMax.
 * Devin auto-updates overwrite the bundle; re-run the installer afterwards.
 

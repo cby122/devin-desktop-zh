@@ -67,7 +67,43 @@ Curated label maps live in dicts such as `An={sidechatUnavailable:\`Not availabl
 
 After replacing, run `node --check` on each bundle — minified bundles still parse as classic scripts.
 
-## 5. Keep the app launchable
+## 4b. The embedded dictionaries inside the editor bundles (deepest layer)
+
+`out/vs/sessions/sessions.desktop.main.js` and `out/vs/workbench/windsurf-chat-client/index.js`
+each carry a **complete second dictionary** as a JS literal right before
+`init({resources:{en:{translation:…,review:…}}})`:
+
+```js
+JSON.parse('{"guide":{…}}')      // windsurf-chat-client: single-quoted
+JSON.parse(`{"guide":{…}}`)      // sessions: template literal
+```
+
+50 namespaces / ~1,447 strings (guide, tabs, diffViewer, ide, sidebar, jobProgress, agent,
+headerActions, merge, mergeManager, discussion, digest, detail, toasts, common, landing,
+analysis, inbox, privateAccess, …). Its key paths do **not** overlap the webapp dictionary,
+yet its *values* do: reuse an `en.json ↔ zh.json` value map (≈25k pairs) and most strings hit.
+This layer is what feeds the Review / 评审 panel, the merge manager and the reviewer sidebar —
+literal replacement alone leaves those screens English.
+
+```bash
+python3 tool-inline-dict.py dump out/vs/sessions/sessions.desktop.main.js /tmp/en-review-inline.json
+python3 tool-inline-dict.py patch out/vs/sessions/sessions.desktop.main.js zh-Hans.review.json
+python3 tool-inline-dict.py patch out/vs/workbench/windsurf-chat-client/index.js zh-Hans.review.json
+node --check out/vs/sessions/sessions.desktop.main.js   # both must still parse
+```
+
+Notes learned the hard way:
+
+* The literal is **JS**, not JSON: `\xNN`, `\uNNNN`, `\'`, `\`` and `\${` must be unescaped first;
+  escaping back must use `\\`, `\'` (single-quote form) or `` \\ ``, `` \` ``, `\${` (template form).
+* Prefer writing a **compact** JSON body: the original escaped every non-ASCII char, so a native
+  UTF-8 body is smaller than the English one and the bundle does not grow.
+* `zh-Hans.review.json` in this repo is that dictionary, fully translated — the same file drives
+  the `chunk-zh-review-zhcn.js` webapp chunk, so one translation serves both layers.
+* Machine translation is unreliable for this layer (Bing `ttranslatev3` now 401s, Google gtx empty,
+  LibreTranslate mirrors 502): MyMemory works until the quota, then finish the rest by hand.
+
+
 
 ```bash
 # 1. recompute checksums for every modified file listed in product.json
