@@ -11,6 +11,7 @@ Devin Desktop ships its own React front-end and only bundles `en / ja / pt / es 
 | `zh-Hans.translation.json` | Main dictionary — 423 namespaces / 33,457 strings, key-set identical to the built-in English one. |
 | `chunk-zh-hans-zhcn.js` | The same dictionary as an ES module chunk, which is what the app actually imports. |
 | `zh-Hans.review.json` / `chunk-zh-review-zhcn.js` | Dictionary for the PR-review screen (50 namespaces / 1,447 strings). The same file also feeds the dictionary embedded inside `sessions.desktop.main.js` and `windsurf-chat-client/index.js`. |
+| `tool-option-labels.py` | Maps the ACP-provided option labels (Default / Low / Medium / High / Xhigh / Max / Normal …) to Chinese in the local select renderer — the model, reasoning-effort and collaboration-mode drop-downs. |
 | `tool-inline-dict.py` | Dumps / re-patches the dictionaries embedded in the two big editor bundles (`JSON.parse('…')` literal) — the layer behind the Review, merge-manager and reviewer-sidebar screens. |
 | `tool-ide-translate.py` | Extracts hard-coded UI literals from the three big bundles and translates them (Bing, resumable cache). |
 | `tool-ide-patch.py` / `tool-pass2-patch.py` | Replace those literals in `workbench.desktop.main.js`, `sessions.desktop.main.js` and `windsurf-chat-client/index.js`, plus the web-app assets. |

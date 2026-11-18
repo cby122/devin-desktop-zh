@@ -103,7 +103,25 @@ Notes learned the hard way:
 * Machine translation is unreliable for this layer (Bing `ttranslatev3` now 401s, Google gtx empty,
   LibreTranslate mirrors 502): MyMemory works until the quota, then finish the rest by hand.
 
+## 4c. Runtime option labels sent by the agent (Default / Low / … / Max)
 
+The model, reasoning-effort and collaboration-mode drop-downs get their labels from
+ACP `configOptions` at runtime — no bundle contains the words `Xhigh`,
+`Collaboration mode` or `Reasoning effort`, so dictionary work cannot reach them.
+What *is* local is the renderer:
+
+```js
+function El({config:e,value:t,onSelect:n,label:r,…}){ …
+  jsx(vr,{ label:c?.name??r, children:s.map(e=>jsx(oi,{ children:[e.name, …] })) }) }
+```
+
+`python3 tool-option-labels.py <chunk holding label:c?.name??r>` injects
+`__devinZhOpt(name,value)` and maps both the badge and the menu rows:
+`default→默认 low→低 medium→中 high→高 xhigh→极高 max→最高 normal→标准 fast→快速 pro→专业 …`.
+Values absent from the map (real model names such as `SWE-2 Flash Medium`, `Claude Sonnet`)
+stay as-is on purpose. Only one `chunk-app-initial-*.js` matches and its hash changes every build.
+
+## 5. Keep the app launchable
 
 ```bash
 # 1. recompute checksums for every modified file listed in product.json
