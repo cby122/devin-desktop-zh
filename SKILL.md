@@ -132,10 +132,21 @@ The `/` command menu ("命令和技能") gets its rows from the same payload
 the description its skill or agent author wrote, which is user content and is not translated here.
 
 Option subtitles (`option.description`, e.g. the per-level explanation under Default/Low/High…)
-are server-sent English; `__devinZhOptDesc()` maps them by value first, then by keyword, and
-leaves already-Chinese text alone.
+are server-sent English; `__devinZhOptDesc(value, description)` maps them **only** when the
+option value is one of the known level keys (`none/minimal/low/medium/high/xhigh/max/…`).
+
+Never add a keyword heuristic on the description text. An earlier version did
+(`/more|complex|hard/ → 推理更深，适合复杂问题`, `/less|light|low/ → 推理更少，速度更快`)
+and it silently corrupted the **agent picker**: any agent whose author-written description
+contained `complex`, `advanced`, `light` or `minimal` was relabelled as a reasoning level
+(`bmad:bmad-orchestrator`, `gc-ai:gc-ai-analyst`, `requirements:requirements-code` … all showed
+"推理更少，速度更快"). Values that are agent ids or model names must fall through untouched —
+those descriptions are user content, not UI copy.
 
 ## 5. Keep the app launchable
+
+As of 2026-11-19 `install_devin_zh.py` does all four steps itself (chunks → IDE patch →
+checksums → sign → self-check), so this section is the manual equivalent / debugging path.
 
 ```bash
 # 1. recompute checksums for every modified file listed in product.json
@@ -171,4 +182,31 @@ Expected leftovers that cannot be fixed locally: server/ACP payloads (model labe
 
 ## 7. After a Devin update
 
-Re-run `install_devin_zh.py` (agent UI), then repeat §4–§5 for the editor half. Keep the pre-patch bundles; restoring them is the fastest rollback.
+```bash
+python3 install_devin_zh.py          # chunks + IDE half + render layer + checksums + sign + self-check
+```
+
+Five steps, all idempotent: 语言分片+注册 → 编辑器半区（`ide_cache.json`）→ 界面渲染层
+(`__devinZhOpt` 档位标签、少量硬编码文案）→ checksums → 签名与自检。
+`--no-ide` limits it to the agent UI. If the update rewrites enough strings that the
+cache stops matching, regenerate it with `tool-ide-translate.py` (Bing, resumable) and keep the
+new `ide_cache.json` next to the installer. Keep the pre-patch bundles; restoring them is the
+fastest rollback.
+
+## 8. Terminology policy (2026-11-19)
+
+| English | Chinese | Never |
+|---|---|---|
+| Review (feature, tab, "Devin Review") | 评审 | 德文 / 审查 / 审核 / 审阅 |
+| Pull request | PR | 拉取请求 |
+| Sessions | 会话 | 会议 |
+| Wiki | 知识库 | 维基 / wiki |
+| Admin approval ("管理员审核", seat/usage requests) | 审核 | 评审 |
+
+Applied across both dictionaries (webapp + review) including Latin↔CJK spacing
+(`PR 评论`, `Devin 会话`). Re-apply with `/tmp/normalize_terms.py`-style passes if a future
+dictionary import reintroduces 审查/审核/审阅.
+
+Known unmapped leftovers — do not chase them: session titles from the server
+(`New session kenny`), `Free - Upgrade Now`, `Devin - Settings`, model names, brand names,
+and agent/skill descriptions authored by the user.
