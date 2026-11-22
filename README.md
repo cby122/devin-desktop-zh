@@ -16,8 +16,31 @@ Devin Desktop ships its own React front-end and only bundles `en / ja / pt / es 
 | `tool-inline-dict.py` | Dumps / re-patches the dictionaries embedded in the two big editor bundles (`JSON.parse('…')` literal) — the layer behind the Review, merge-manager and reviewer-sidebar screens. |
 | `tool-ide-translate.py` | Extracts hard-coded UI literals from the three big bundles and translates them (Bing, resumable cache). |
 | `tool-ide-patch.py` / `tool-pass2-patch.py` | Replace those literals in `workbench.desktop.main.js`, `sessions.desktop.main.js` and `windsurf-chat-client/index.js`, plus the web-app assets. |
+| `tool-bing-translate.py` | Minimal Bing translator client (cookie jar + token refresh) used by the two batch drivers below; no API key needed. |
+| `tool-translate-all.py` | First pass: walks the English dictionary, translates every string with a resumable cache, prints a progress log. |
+| `tool-pass2-extract.py` | Second pass, extract: pulls the strings that never reached a React text node out of the big bundles (`JSON.parse('…')` literals, template strings) into a candidate list. |
+| `tool-pass2-translate.py` | Second pass, translate: translates that candidate list with its own cache, split across worker threads. |
+| `tool-assemble.py` / `tool-assemble2.py` | Assemble: merges the two translation caches back into the dictionaries and regenerates `zh-Hans.translation.json` / the ES module chunk. |
+| `tool-translate-review.py` | Review-screen dictionary pipeline: flattens the English review dictionary, translates the gaps, writes `zh-Hans.review.json`. |
+| `tool-scan-hard.py` | Audit: collects every remaining ASCII-only string across the bundles so the leftovers can be triaged into “hard-coded, patch it” vs “comes from the server”. |
+| `tool-patch-app.py` | Applies the web-app (`devin-webapp-host/assets`) patches to an already built bundle — the manual counterpart of `install_devin_zh.py --no-ide`. |
+| `tool-normalize-terms.py` / `tool-term-pass2.py` | Terminology pass: rewrites 审查/审核/审阅 → 评审, 拉取请求 → PR, adds spacing between CJK and Latin, protects `{{placeholders}}` and `<tags>`; the second pass fixes the sentences the first pass made awkward. |
+| `devin-desktop-zh.zip` | Ready-to-use archive of the whole pack (two dictionaries, `ide_cache.json`, installer, docs) — download this if you just want to install. |
 
 `screenshot-ide.png` shows the editor view after patching.
+
+## Pipeline
+
+```
+extract    tool-pass2-extract.py / tool-ide-translate.py
+translate  tool-bing-translate.py + tool-translate-all.py · tool-pass2-translate.py · tool-translate-review.py
+assemble   tool-assemble.py → tool-assemble2.py
+terminology tool-normalize-terms.py → tool-term-pass2.py
+patch      install_devin_zh.py   (or tool-patch-app.py + tool-ide-patch.py + tool-option-labels.py + tool-inline-dict.py)
+finish     checksums + ad-hoc re-sign + self-check, all inside install_devin_zh.py
+```
+
+Everything except the installer is a re-runnable helper: each stage reads a cache and is safe to stop and resume.
 
 ## Install
 
