@@ -667,9 +667,9 @@
 },
 "intro": {
 "features": [
-"Catches bugs automatically, ranked by severity",
-"Auto-fix and iterate",
-"Intelligently organized code diffs"
+"自动发现漏洞，并按严重程度排序",
+"自动修复并迭代",
+"智能整理的代码差异"
 ],
 "subtitle": "组织差异、检测移动代码并标记潜在错误的代码评审。",
 "title": "Devin 评审"
@@ -1044,7 +1044,7 @@
 },
 "loadFailed": "无法加载合并风险结果。",
 "shadow": {
-"badge": "Shadow",
+"badge": "影子模式",
 "approve": "影子模式：Devin 本会批准此 PR。未采取任何操作。",
 "withdraw": "影子模式：Devin 本会将此 PR 留给人工评审，并撤回任何早前自己的批准。未采取任何操作。",
 "noAction": "影子模式：Devin 对此 PR 不采取任何操作。"
