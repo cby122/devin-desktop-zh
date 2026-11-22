@@ -67,7 +67,86 @@ Curated label maps live in dicts such as `An={sidechatUnavailable:\`Not availabl
 
 After replacing, run `node --check` on each bundle — minified bundles still parse as classic scripts.
 
+## 4b. The embedded dictionaries inside the editor bundles (deepest layer)
+
+`out/vs/sessions/sessions.desktop.main.js` and `out/vs/workbench/windsurf-chat-client/index.js`
+each carry a **complete second dictionary** as a JS literal right before
+`init({resources:{en:{translation:…,review:…}}})`:
+
+```js
+JSON.parse('{"guide":{…}}')      // windsurf-chat-client: single-quoted
+JSON.parse(`{"guide":{…}}`)      // sessions: template literal
+```
+
+50 namespaces / ~1,447 strings (guide, tabs, diffViewer, ide, sidebar, jobProgress, agent,
+headerActions, merge, mergeManager, discussion, digest, detail, toasts, common, landing,
+analysis, inbox, privateAccess, …). Its key paths do **not** overlap the webapp dictionary,
+yet its *values* do: reuse an `en.json ↔ zh.json` value map (≈25k pairs) and most strings hit.
+This layer is what feeds the Review / 评审 panel, the merge manager and the reviewer sidebar —
+literal replacement alone leaves those screens English.
+
+```bash
+python3 tool-inline-dict.py dump out/vs/sessions/sessions.desktop.main.js /tmp/en-review-inline.json
+python3 tool-inline-dict.py patch out/vs/sessions/sessions.desktop.main.js zh-Hans.review.json
+python3 tool-inline-dict.py patch out/vs/workbench/windsurf-chat-client/index.js zh-Hans.review.json
+node --check out/vs/sessions/sessions.desktop.main.js   # both must still parse
+```
+
+Notes learned the hard way:
+
+* The literal is **JS**, not JSON: `\xNN`, `\uNNNN`, `\'`, `\`` and `\${` must be unescaped first;
+  escaping back must use `\\`, `\'` (single-quote form) or `` \\ ``, `` \` ``, `\${` (template form).
+* Prefer writing a **compact** JSON body: the original escaped every non-ASCII char, so a native
+  UTF-8 body is smaller than the English one and the bundle does not grow.
+* `zh-Hans.review.json` in this repo is that dictionary, fully translated — the same file drives
+  the `chunk-zh-review-zhcn.js` webapp chunk, so one translation serves both layers.
+* Machine translation is unreliable for this layer (Bing `ttranslatev3` now 401s, Google gtx empty,
+  LibreTranslate mirrors 502): MyMemory works until the quota, then finish the rest by hand.
+
+## 4c. Runtime option labels sent by the agent (Default / Low / … / Max)
+
+The model, reasoning-effort and collaboration-mode drop-downs get their labels from
+ACP `configOptions` at runtime — no bundle contains the words `Xhigh`,
+`Collaboration mode` or `Reasoning effort`, so dictionary work cannot reach them.
+What *is* local is the renderer:
+
+```js
+function El({config:e,value:t,onSelect:n,label:r,…}){ …
+  jsx(vr,{ label:c?.name??r, children:s.map(e=>jsx(oi,{ children:[e.name, …] })) }) }
+```
+
+`python3 tool-option-labels.py <chunk holding label:c?.name??r>` injects
+`__devinZhOpt(name,value)` and maps both the badge and the menu rows:
+`default→默认 low→低 medium→中 high→高 xhigh→极高 max→最高 normal→标准 fast→快速 pro→专业 …`.
+Values absent from the map (real model names such as `SWE-2 Flash Medium`, `Claude Sonnet`)
+stay as-is on purpose. Only one `chunk-app-initial-*.js` matches and its hash changes every build.
+
+Field names come from the same ACP payload (`Effort`, `Agent`, `Mode`), so `__devinZhLab()` maps
+them to 推理 / 代理 / 协作模式, and a bare `默认` chip becomes `默认（推理）` /
+`默认（代理）` / `默认（模式）` so the two 默认 chips are distinguishable.
+
+The `/` command menu ("命令和技能") gets its rows from the same payload
+(`availableCommands` → `{type:'input-command', displayText:'/'+name, description}`).
+`__devinZhCmd(name, description)` in the same chunk rewrites descriptions for known agent ids
+(`requirements-code/generate/review/testing`, `report-distribution-agent`); every other row keeps
+the description its skill or agent author wrote, which is user content and is not translated here.
+
+Option subtitles (`option.description`, e.g. the per-level explanation under Default/Low/High…)
+are server-sent English; `__devinZhOptDesc(value, description)` maps them **only** when the
+option value is one of the known level keys (`none/minimal/low/medium/high/xhigh/max/…`).
+
+Never add a keyword heuristic on the description text. An earlier version did
+(`/more|complex|hard/ → 推理更深，适合复杂问题`, `/less|light|low/ → 推理更少，速度更快`)
+and it silently corrupted the **agent picker**: any agent whose author-written description
+contained `complex`, `advanced`, `light` or `minimal` was relabelled as a reasoning level
+(`bmad:bmad-orchestrator`, `gc-ai:gc-ai-analyst`, `requirements:requirements-code` … all showed
+"推理更少，速度更快"). Values that are agent ids or model names must fall through untouched —
+those descriptions are user content, not UI copy.
+
 ## 5. Keep the app launchable
+
+As of 2026-11-19 `install_devin_zh.py` does all four steps itself (chunks → IDE patch →
+checksums → sign → self-check), so this section is the manual equivalent / debugging path.
 
 ```bash
 # 1. recompute checksums for every modified file listed in product.json
@@ -103,4 +182,31 @@ Expected leftovers that cannot be fixed locally: server/ACP payloads (model labe
 
 ## 7. After a Devin update
 
-Re-run `install_devin_zh.py` (agent UI), then repeat §4–§5 for the editor half. Keep the pre-patch bundles; restoring them is the fastest rollback.
+```bash
+python3 install_devin_zh.py          # chunks + IDE half + render layer + checksums + sign + self-check
+```
+
+Five steps, all idempotent: 语言分片+注册 → 编辑器半区（`ide_cache.json`）→ 界面渲染层
+(`__devinZhOpt` 档位标签、少量硬编码文案）→ checksums → 签名与自检。
+`--no-ide` limits it to the agent UI. If the update rewrites enough strings that the
+cache stops matching, regenerate it with `tool-ide-translate.py` (Bing, resumable) and keep the
+new `ide_cache.json` next to the installer. Keep the pre-patch bundles; restoring them is the
+fastest rollback.
+
+## 8. Terminology policy (2026-11-19)
+
+| English | Chinese | Never |
+|---|---|---|
+| Review (feature, tab, "Devin Review") | 评审 | 德文 / 审查 / 审核 / 审阅 |
+| Pull request | PR | 拉取请求 |
+| Sessions | 会话 | 会议 |
+| Wiki | 知识库 | 维基 / wiki |
+| Admin approval ("管理员审核", seat/usage requests) | 审核 | 评审 |
+
+Applied across both dictionaries (webapp + review) including Latin↔CJK spacing
+(`PR 评论`, `Devin 会话`). Re-apply with `/tmp/normalize_terms.py`-style passes if a future
+dictionary import reintroduces 审查/审核/审阅.
+
+Known unmapped leftovers — do not chase them: session titles from the server
+(`New session kenny`), `Free - Upgrade Now`, `Devin - Settings`, model names, brand names,
+and agent/skill descriptions authored by the user.
